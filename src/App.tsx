@@ -346,6 +346,10 @@ interface SiteConfig {
   skills: Skill[];
   workflowLeft: WorkflowStep[];
   workflowRight: WorkflowStep[];
+  portfolioPdfUrl?: string;
+  portfolioPdfName?: string;
+  portfolioPdfButtonText?: string;
+  portfolioPdfDesc?: string;
   sections: {
     about: ResumeSection;
     company: SectionContent;
@@ -481,9 +485,13 @@ const initialSiteConfig: SiteConfig = {
     { id: '3', step: '03', title: 'Generation', desc: 'Dzine & AI 툴을 이용한 고퀄리티 비주얼 에셋 생성', note: '', icon: 'Sparkles' },
     { id: '4', step: '04', title: 'Output', desc: '일관성 있는 디자인 시스템 구축 및 3D 아이콘 생성 가이드 적용', note: '"3D 아이콘 생성 가이드: 일관된 조명값과 재질감을 유지하며 브랜드 아이덴티티를 강화하는 워크플로우..."', icon: 'CheckCircle2' }
   ],
+  portfolioPdfUrl: '',
+  portfolioPdfName: '고희승_포트폴리오_2025.pdf',
+  portfolioPdfButtonText: 'Download PDF',
+  portfolioPdfDesc: '회사 별 작업했던 문서가 있는 파일로, 구글Ndrive로 연결되며 \'파일을 미리 볼 수 없습니다…\' 문구 하단 청색 \'다운로드\' 버튼을 눌러 고희승_포트폴리오_2025.pdf를 다운로드 해주시기 바랍니다. (용량:4.5MB)',
   sections: {
     about: {
-      title: 'Resume to date',
+      title: 'RESUME',
       subtitle: '개인정보 내용으로 해당 페이지는 무단 복제/ 공유 불가하며 담당자만 열람 가능합니다.',
       personalInfo: {
         name: '고희승',
@@ -995,7 +1003,7 @@ const SectionModal = ({
                           <div key={edu.id} className="bg-white/5 p-6 rounded-[20px] border border-white/5 space-y-4 hover:bg-white/10 transition-colors group">
                             <div className="flex items-start justify-between gap-4">
                               <h5 className="text-lg font-bold text-white/90 group-hover:text-accent-purple transition-colors">
-                                #{index + 1} {edu.title}
+                                {edu.title}
                               </h5>
                               <span className="text-[10px] bg-accent-purple/10 text-accent-purple border border-accent-purple/20 px-3 py-1 rounded-full font-bold uppercase tracking-widest whitespace-nowrap">
                                 {edu.organizer}
@@ -1064,16 +1072,30 @@ const SectionModal = ({
             {type === 'portfolio' && (
               <div className="w-full space-y-4">
                 <div className="bg-white/5 p-4 rounded-[20px] border border-white/10 flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-3">
-                    <FileText className="text-accent-purple" />
-                    <span className="text-sm font-bold">고희승_포트폴리오_2025.pdf</span>
+                  <div className="flex items-start gap-3">
+                    <FileText className="text-accent-purple shrink-0 mt-1" />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold">{siteConfig.portfolioPdfName || 'portfolio.pdf'}</span>
+                      {siteConfig.portfolioPdfDesc && (
+                        <span className="text-[10px] text-white/40 mt-1 leading-relaxed whitespace-pre-line">
+                          {siteConfig.portfolioPdfDesc}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <a 
-                    href="#" 
-                    onClick={(e) => e.preventDefault()}
+                    href={siteConfig.portfolioPdfUrl || '#'} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (!siteConfig.portfolioPdfUrl) {
+                        e.preventDefault();
+                        alert('링크가 등록되지 않았습니다.');
+                      }
+                    }}
                     className="text-xs bg-accent-purple/20 text-accent-purple px-4 py-2 rounded-full font-bold hover:bg-accent-purple hover:text-white transition-all"
                   >
-                    Download PDF
+                    {siteConfig.portfolioPdfButtonText || 'Download PDF'}
                   </a>
                 </div>
               </div>
@@ -1324,6 +1346,20 @@ function App() {
       }
     });
 
+    // Listen to Portfolio PDF
+    const unsubPdf = onSnapshot(doc(db, 'config', 'portfolio_pdf'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSiteConfig(prev => ({ 
+          ...prev, 
+          portfolioPdfUrl: data.portfolioPdfUrl || prev.portfolioPdfUrl,
+          portfolioPdfName: data.portfolioPdfName || prev.portfolioPdfName,
+          portfolioPdfButtonText: data.portfolioPdfButtonText || prev.portfolioPdfButtonText,
+          portfolioPdfDesc: data.portfolioPdfDesc || prev.portfolioPdfDesc
+        }));
+      }
+    });
+
     // Listen to Timeline & Awards
     const unsubTimelineAwards = onSnapshot(doc(db, 'config', 'timeline_awards'), (docSnap) => {
       if (docSnap.exists()) {
@@ -1437,6 +1473,15 @@ function App() {
       // 2.5 Save Background separately
       const backgroundRef = doc(db, 'config', 'background');
       batch.set(backgroundRef, { backgroundImage: finalBackgroundImage || '' });
+
+      // 2.6 Save Portfolio PDF separately
+      const pdfRef = doc(db, 'config', 'portfolio_pdf');
+      batch.set(pdfRef, { 
+        portfolioPdfUrl: draftConfig.portfolioPdfUrl || '',
+        portfolioPdfName: draftConfig.portfolioPdfName || '',
+        portfolioPdfButtonText: draftConfig.portfolioPdfButtonText || 'Download PDF',
+        portfolioPdfDesc: draftConfig.portfolioPdfDesc || ''
+      });
 
       // 3. Save Skills separately
       const skillsRef = doc(db, 'config', 'skills');
@@ -2035,21 +2080,21 @@ function App() {
                     <div className="bg-white/5 border border-white/10 rounded-[20px] p-4 space-y-2 backdrop-blur-xl">
                       <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-4 px-2">Navigation</p>
                       <button 
-                        onClick={() => document.getElementById('admin-about')?.scrollIntoView({ behavior: 'smooth' })}
+                        onClick={() => document.getElementById('admin-nav-pages')?.scrollIntoView({ behavior: 'smooth' })}
                         className="w-full text-left px-4 py-2 rounded-[10px] text-xs font-bold hover:bg-accent-purple/20 hover:text-accent-purple transition-all flex items-center gap-2 group"
                       >
                         <div className="w-1 h-1 rounded-full bg-accent-purple opacity-0 group-hover:opacity-100 transition-opacity" />
                         ABOUT
                       </button>
                       <button 
-                        onClick={() => document.getElementById('admin-company')?.scrollIntoView({ behavior: 'smooth' })}
+                        onClick={() => document.getElementById('admin-company-page')?.scrollIntoView({ behavior: 'smooth' })}
                         className="w-full text-left px-4 py-2 rounded-[10px] text-xs font-bold hover:bg-accent-purple/20 hover:text-accent-purple transition-all flex items-center gap-2 group"
                       >
                         <div className="w-1 h-1 rounded-full bg-accent-purple opacity-0 group-hover:opacity-100 transition-opacity" />
                         COMPANY DESCRIPTION
                       </button>
                       <button 
-                        onClick={() => document.getElementById('admin-projects')?.scrollIntoView({ behavior: 'smooth' })}
+                        onClick={() => document.getElementById('admin-portfolio-settings')?.scrollIntoView({ behavior: 'smooth' })}
                         className="w-full text-left px-4 py-2 rounded-[10px] text-xs font-bold hover:bg-accent-purple/20 hover:text-accent-purple transition-all flex items-center gap-2 group"
                       >
                         <div className="w-1 h-1 rounded-full bg-accent-purple opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -3058,11 +3103,15 @@ function App() {
                   <hr className="border-accent-purple border-t-[3px] my-12" />
 
                   {/* Navigation Pages Content Section */}
-                  <div id="admin-company" className="bg-white/5 p-8 rounded-[10px] border border-white/10 scroll-mt-32">
+                  <div id="admin-nav-pages" className="bg-white/5 p-8 rounded-[10px] border border-white/10 scroll-mt-32">
                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Layout size={20} /> Navigation Pages Content</h3>
                     <div className="space-y-12">
                       {(Object.entries(draftConfig.sections) as [keyof typeof draftConfig.sections, any][]).map(([key, section]) => (
-                        <div key={key} className="bg-black/40 p-6 rounded-[10px] border border-white/5 space-y-6">
+                        <div 
+                          key={key} 
+                          id={key === 'company' ? 'admin-company-page' : undefined}
+                          className="bg-black/40 p-6 rounded-[10px] border border-white/5 space-y-6"
+                        >
                           <div className="flex justify-between items-center">
                             <h4 className="text-lg font-bold uppercase text-accent-purple">{key} Page</h4>
                             {key !== 'about' && (
@@ -3133,6 +3182,50 @@ function App() {
                               />
                             </div>
                           </div>
+
+                          {key === 'project' && (
+                            <div id="admin-portfolio-settings" className="bg-white/5 p-4 rounded-[10px] border border-white/5 space-y-4 scroll-mt-32">
+                              <h5 className="text-xs font-bold text-white/40 uppercase">Portfolio Link Settings</h5>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-white/20 uppercase">Display Name</label>
+                                  <input 
+                                    value={draftConfig.portfolioPdfName || ''}
+                                    onChange={(e) => setDraftConfig({ ...draftConfig, portfolioPdfName: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-[10px] p-2 text-xs"
+                                    placeholder="e.g. portfolio.pdf"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-white/20 uppercase">Button Text</label>
+                                  <input 
+                                    value={draftConfig.portfolioPdfButtonText || ''}
+                                    onChange={(e) => setDraftConfig({ ...draftConfig, portfolioPdfButtonText: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-[10px] p-2 text-xs"
+                                    placeholder="e.g. Download PDF"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-white/20 uppercase">Link URL</label>
+                                  <input 
+                                    value={draftConfig.portfolioPdfUrl || ''}
+                                    onChange={(e) => setDraftConfig({ ...draftConfig, portfolioPdfUrl: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded-[10px] p-2 text-xs"
+                                    placeholder="https://example.com/portfolio.pdf"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="block text-[10px] font-bold text-white/20 uppercase">Description</label>
+                                <textarea 
+                                  value={draftConfig.portfolioPdfDesc || ''}
+                                  onChange={(e) => setDraftConfig({ ...draftConfig, portfolioPdfDesc: e.target.value })}
+                                  className="w-full bg-black/40 border border-white/10 rounded-[10px] p-2 text-xs h-20 resize-none"
+                                  placeholder="Enter description here..."
+                                />
+                              </div>
+                            </div>
+                          )}
                           
                           {key === 'about' ? (
                             <div className="space-y-8">
